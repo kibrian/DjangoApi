@@ -21,7 +21,7 @@ from bookReplacement import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('calculate_cost/', views.calculate_cost),
+    path('calculate_cost/', views.calculate_total_cost),
     path('book/', views.create_book, name='create_book'),
     path('student/', views.create_student, name='create_student'),
     path('request/', views.create_request, name='create_request'),

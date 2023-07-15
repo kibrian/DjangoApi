@@ -1,160 +1,57 @@
 from django.shortcuts import render
 from django.http import JsonResponse
-
-
+import json
+from django.views.decorators.csrf import csrf_exempt
+from .models import Book, Student, Request
+from rest_framework.decorators import api_view
 
 # Create your views here.
 
+@api_view(['POST'])
+def calculate_total_cost(request):
+    data = request.data
 
-def calculate_cost(request):
-    input_data = request.GET.get('input_data', '').split('\n')
-    
-    if not input_data:
-        response = {
-            'error': 'Missing input data or invalid format'
-        }
-        return JsonResponse(response, status=400)
-    
-    datasets = []
-    for i in range(len(input_data)):
-        dataset = list(map(int, input_data[i].split()))
-        if dataset == [0, 0, 0]:
-            break
-        datasets.append(dataset)
-    
-    total_costs = []
-    for dataset in datasets:
-        m, c, n = dataset[:3]
-        student_requests = dataset[3:]
-        
-        desks = [[] for _ in range(m)]
-        shelf = []
-        total_cost = 0
+    m = int(data['m'])
+    c = int(data['c'])
+    n = int(data['n'])
+    students = data['students']
 
-        for student in range(n):
-            requests = student_requests.pop(0)
-            for _ in range(requests):
-                book_id = student_requests.pop(0)
-                book_found = False
-                cost = 0
+    total_cost = calculate_total_cost_helper(m, c, n, students)
 
-                # Check if the requested book is on the desks
-                for desk_index, desk in enumerate(desks):
-                    if book_id in desk:
-                        desk.remove(book_id)
-                        desks[0].append(book_id)  # Move the book to desk D1
-                        cost = desk_index + 1
-                        book_found = True
-                        break
-
-                # If the book is not on the desks, check the shelf
-                if not book_found and book_id in shelf:
-                    shelf.remove(book_id)
-                    desks[0].append(book_id)  # Move the book to desk D1
-                    cost = m + 1
-                    book_found = True
-
-                # If the book is still not found, find the least recently used book on D1 and replace it
-                if not book_found:
-                    least_recently_used = desks[0].pop(0)
-                    cost = m + 1
-                    if len(desks[0]) < c:
-                        desks[0].append(book_id)
-                    else:
-                        for desk in desks[1:]:
-                            if len(desk) < c:
-                                desk.append(book_id)
-                                break
-                        else:
-                            shelf.append(book_id)
-                    desks[0].append(least_recently_used)
-
-                total_cost += cost
-
-        total_costs.append(total_cost)
-
-    response = {
-        'total_costs': total_costs
-    }
+    response = {'total_cost': total_cost}
     return JsonResponse(response)
 
+def calculate_total_cost_helper(m, c, n, students):
+    desks = [[] for _ in range(m)]  # Initialize empty desks
+    shelf = []  # Initialize empty shelf
+    cost = 0  # Total cost
 
-def calculate_cost(request):
-    input_data = request.GET.get('input_data', '').split('\n')
-    
-    if not input_data:
-        response = {
-            'error': 'Missing input data or invalid format'
-        }
-        return JsonResponse(response, status=400)
-    
-    datasets = []
-    for i in range(len(input_data)):
-        dataset = list(map(int, input_data[i].split()))
-        if dataset == [0, 0, 0]:
-            break
-        datasets.append(dataset)
-    
-    total_costs = []
-    for dataset in datasets:
-        m, c, n = dataset[:3]
-        student_requests = dataset[3:]
-        
-        desks = [[] for _ in range(m)]
-        shelf = []
-        total_cost = 0
+    for student in students:
+        for book_id in student:
+            # Check if the requested book is already on a desk
+            for desk_idx, desk in enumerate(desks):
+                if book_id in desk:
+                    desk.remove(book_id)
+                    desk.append(book_id)  # Move the book to the top of the desk
+                    cost += desk_idx + 1  # Accessing the desk costs its index + 1
+                    break
+            # else:  # If the book is not on any desk
+            #     # Check if there is space on the first desk (D1)
+            #     if len(desks[0]) < c:
+            #         desks[0].append(book_id)
+            #         cost += 1  # Accessing D1 costs 1
+            #     else:
+            #         # Find the least recently used book on D1
+            #         lru_book = desks[0].pop(0)
+            #         desks[0].append(book_id)
+            #         shelf.append(lru_book)
+                    cost += m + 1  # Accessing the shelf costs m + 1
 
-        for student in range(n):
-            requests = student_requests.pop(0)
-            for _ in range(requests):
-                book_id = student_requests.pop(0)
-                book_found = False
-                cost = 0
+    return cost
 
-                # Check if the requested book is on the desks
-                for desk_index, desk in enumerate(desks):
-                    if book_id in desk:
-                        desk.remove(book_id)
-                        desks[0].append(book_id)  # Move the book to desk D1
-                        cost = desk_index + 1
-                        book_found = True
-                        break
 
-                # If the book is not on the desks, check the shelf
-                if not book_found and book_id in shelf:
-                    shelf.remove(book_id)
-                    desks[0].append(book_id)  # Move the book to desk D1
-                    cost = m + 1
-                    book_found = True
 
-                # If the book is still not found, find the least recently used book on D1 and replace it
-                if not book_found:
-                    least_recently_used = desks[0].pop(0)
-                    cost = m + 1
-                    if len(desks[0]) < c:
-                        desks[0].append(book_id)
-                    else:
-                        for desk in desks[1:]:
-                            if len(desk) < c:
-                                desk.append(book_id)
-                                break
-                        else:
-                            shelf.append(book_id)
-                    desks[0].append(least_recently_used)
 
-                total_cost += cost
-
-        total_costs.append(total_cost)
-
-    response = {
-        'total_costs': total_costs
-    }
-    return JsonResponse(response)
-
-import json
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from .models import Book, Student, Request
 
 @csrf_exempt
 def create_book(request):
